@@ -1,120 +1,166 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Z3;
 namespace SudokuSolver
 {
-    public static class Solver
+    public class Solver
     {
-        public static int MinValue = 1;
-        public static int MaxValue = 9;
-        public static int SquareWidth = 3;
-        public static int SquareHeight = 3;
-        public static int SquareCountWid = 3;
-        public static int SquareCountHei = 3;
-        public static int Height = 9;
-        public static int Width = 9;
-        public static void Solve()
+        public int MinValue = 1;
+        public int MaxValue = 9;
+        public int SquareWidth = 3;
+        public int SquareHeight = 3;
+        public int SquareCountWid = 3;
+        public int SquareCountHei = 3;
+        public int Height = 9;
+        public int Width = 9;
+        private readonly Context _ctx;
+        public IntExpr[,] array;
+        public int[,] resultArray;
+        public ReadOnlyCollection<BoolExpr> _rules;
+        public List<Rule> extraRules;
+
+        public Solver()
         {
-            var ctx = new Context(new Dictionary<string, string>() { { "model", "true" } });
-            var array = new IntExpr[Height, Width];
-            for (var i = 0; i < Height; i++)
+            this._ctx = new Context(new Dictionary<string, string>() { { "model", "true" } });
+            this.array = new IntExpr[this.Height, this.Width];
+            this.resultArray = new int[this.Height, this.Width];
+            this.extraRules = new List<Rule>();
+            for (var i = 0; i < this.Height; i++)
             {
-                for (var j = 0; j < Width; j++)
+                for (var j = 0; j < this.Width; j++)
                 {
-                    array[i, j] = (IntExpr) ctx.MkConst(ctx.MkSymbol("x_" + (i + 1) + "_" + (j + 1)), ctx.IntSort);
+                    this.array[i, j] = (IntExpr) this._ctx.MkConst(this._ctx.MkSymbol("x_" + (i + 1) + "_" + (j + 1)), this._ctx.IntSort);
                 }
             }
+
             var list = new List<BoolExpr>();
-            for (var i = 0; i < Height; i++)
+            for (var i = 0; i < this.Height; i++)
             {
-                for (var j = 0; j < Width; j++)
+                for (var j = 0; j < this.Width; j++)
                 {
                     // In range check
-                    list.Add(ctx.MkAnd(ctx.MkLe(ctx.MkInt(MinValue), array[i, j]), ctx.MkLe(array[i, j], ctx.MkInt(MaxValue))));
+                    list.Add(this._ctx.MkAnd(this._ctx.MkLe(this._ctx.MkInt(this.MinValue), this.array[i, j]), this._ctx.MkLe(this.array[i, j], this._ctx.MkInt(this.MaxValue))));
                 }
             }
-            for (var i = 0; i < Height; i++)
+
+            for (var i = 0; i < this.Height; i++)
             {
-                var row = new IntExpr[Height];
-                for (var j = 0; j < Width; j++)
+                var row = new IntExpr[this.Height];
+                for (var j = 0; j < this.Width; j++)
                 {
-                    row[j] = array[i, j];
+                    row[j] = this.array[i, j];
                 }
                 // Row
-                list.Add(ctx.MkDistinct(row));
+                list.Add(this._ctx.MkDistinct(row));
             }
-            for (var j = 0; j < Width; j++)
+
+            for (var j = 0; j < this.Width; j++)
             {
-                var column = new IntExpr[Height];
-                for (var i = 0; i < Height; i++)
+                var column = new IntExpr[this.Height];
+                for (var i = 0; i < this.Height; i++)
                 {
-                    column[i] = array[i, j];
+                    column[i] = this.array[i, j];
                 }
                 // Column
-                list.Add(ctx.MkDistinct(column));
+                list.Add(this._ctx.MkDistinct(column));
             }
-            for (var squarei = 0; squarei < SquareCountWid; squarei++)
+
+            for (var squarei = 0; squarei < this.SquareCountWid; squarei++)
             {
-                for (var squarej = 0; squarej < SquareCountHei; squarej++)
+                for (var squarej = 0; squarej < this.SquareCountHei; squarej++)
                 {
-                    var square = new IntExpr[SquareWidth * SquareHeight];
-                    for (var i = 0; i < SquareWidth; i++)
+                    var square = new IntExpr[this.SquareWidth * this.SquareHeight];
+                    for (var i = 0; i < this.SquareWidth; i++)
                     {
-                        for (var j = 0; j < SquareHeight; j++)
+                        for (var j = 0; j < this.SquareHeight; j++)
                         {
-                            square[(SquareWidth * i) + j] = array[(SquareWidth * squarei) + i, (SquareHeight * squarej) + j];
+                            square[(this.SquareWidth * i) + j] = this.array[(this.SquareWidth * squarei) + i, (this.SquareHeight * squarej) + j];
                         }
                     }
                     // Square
-                    list.Add(ctx.MkDistinct(square));
+                    list.Add(this._ctx.MkDistinct(square));
                 }
             }
+            this._rules = list.AsReadOnly();
+        }
 
-            // sudoku instance, we use '0' for empty cells
-            int[,] sudoku = {{0,0,0,0,9,4,0,3,0},
-                             {0,0,0,5,1,0,0,0,7},
-                             {0,8,9,0,0,0,0,4,0},
-                             {0,0,0,0,0,0,2,0,8},
-                             {0,6,0,2,0,1,0,5,0},
-                             {1,0,2,0,0,0,0,0,0},
-                             {0,7,0,0,0,0,5,2,0},
-                             {9,0,0,0,6,5,0,0,0},
-                             {0,4,0,9,7,0,0,0,0}};
-
-            for (var i = 0; i < Height; i++)
+        public int[,] Solve()
+        {
+            var list = new List<BoolExpr>();
+            for (var i = 0; i < this.Height; i++)
             {
-                for (var j = 0; j < Width; j++)
+                for (var j = 0; j < this.Width; j++)
                 {
                     // Match origin array
                     // sudoku[i, j] == 0 ? true : sudoku[i, j] == array[i, j]
-                    list.Add((BoolExpr) ctx.MkITE(ctx.MkEq(ctx.MkInt(sudoku[i, j]), ctx.MkInt(0)),
-                        ctx.MkTrue(),
-                        ctx.MkEq(array[i, j], ctx.MkInt(sudoku[i, j]))));
+                    list.Add((BoolExpr) this._ctx.MkITE(this._ctx.MkEq(this._ctx.MkInt(this.resultArray[i, j]), this._ctx.MkInt(0)),
+                        this._ctx.MkTrue(),
+                        this._ctx.MkEq(this.array[i, j], this._ctx.MkInt(this.resultArray[i, j]))));
                 }
             }
 
-            var s = ctx.MkSolver();
-            s.Assert(ctx.MkAnd(list));
+            foreach (var item in this.extraRules)
+            {
+                if (!item.Valid())
+                {
+                    break;
+                }
+                var elements = item.Target.Select(p => this.array[p.X, p.Y]).ToList();
+                switch (item.Type)
+                {
+                    case RuleType.None:
+                    {
+                        break;
+                    }
+                    case RuleType.GT:
+                    {
+                        list.Add(this._ctx.MkGt(this.array[item.Target[0].X, item.Target[0].Y], this.array[item.Target[1].X, item.Target[1].Y]));
+                        break;
+                    }
+                    case RuleType.Consecutive:
+                    {
+                        list.Add(this._ctx.MkOr(this._ctx.MkGt(elements[0], elements[1]), this._ctx.MkLe(elements[0], elements[1])));
+                        break;
+                    }
+                    case RuleType.V:
+                    {
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements[0], elements[1]), this._ctx.MkInt(5)));
+                        break;
+                    }
+                    case RuleType.X:
+                    {
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements[0], elements[1]), this._ctx.MkInt(10)));
+                        break;
+                    }
+                    case RuleType.Killer:
+                    {
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements), this._ctx.MkInt(item.Extra)));
+                        break;
+                    }
+                }
+            }
 
+            var s = this._ctx.MkSolver();
+            s.Assert(this._ctx.MkAnd(list));
+            var result = new int[9, 9];
             if (s.Check() == Status.SATISFIABLE)
             {
                 var m = s.Model;
-                Console.WriteLine("Sudoku solution:");
-                for (var i = 0; i < Height; i++)
+                for (var i = 0; i < this.Height; i++)
                 {
-                    for (var j = 0; j < Width; j++)
+                    for (var j = 0; j < this.Width; j++)
                     {
-                        Console.Write(" " + m.Evaluate(array[i, j]));
+                        result[i, j] = int.Parse(m.Evaluate(this.array[i, j]).ToString());
                     }
-                    Console.WriteLine();
                 }
+                return result;
             }
             else
             {
-                Console.WriteLine("Failed to solve sudoku");
                 throw new Exception("SudokuNotSolved");
             }
         }
