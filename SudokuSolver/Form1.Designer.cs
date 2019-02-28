@@ -67,6 +67,7 @@
             // 
             // comboBoxRule
             // 
+            this.comboBoxRule.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboBoxRule.FormattingEnabled = true;
             this.comboBoxRule.Location = new System.Drawing.Point(7, 20);
             this.comboBoxRule.Name = "comboBoxRule";

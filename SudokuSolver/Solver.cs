@@ -140,6 +140,19 @@ namespace Chireiden.SudokuSolver
                         list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements), this._ctx.MkInt(item.Extra)));
                         break;
                     }
+                    case RuleType.Diagonals:
+                    {
+                        var left = new IntExpr[this.Width];
+                        var right = new IntExpr[this.Width];
+                        for (var i = 0; i < this.Width; i++)
+                        {
+                            left[i] = this.array[i, i];
+                            right[i] = this.array[i, this.Width - i - 1];
+                        }
+                        list.Add(this._ctx.MkDistinct(left));
+                        list.Add(this._ctx.MkDistinct(right));
+                        break;
+                    }
                 }
             }
 
@@ -161,7 +174,7 @@ namespace Chireiden.SudokuSolver
             }
             else
             {
-                throw new Exception("SudokuNotSolved");
+                return null;
             }
         }
     }

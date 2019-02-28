@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 namespace Chireiden.SudokuSolver
 {
@@ -15,19 +18,86 @@ namespace Chireiden.SudokuSolver
     }
 
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public sealed class NotIImplementedAttribute : Attribute
+    public sealed class NotImplementedAttribute : Attribute
     {
+    }
+
+    public static class RuleTypeHelper
+    {
+        public class RuleTypeItem
+        {
+            public string Name;
+            public int MinCount;
+            public int MaxCount;
+            public bool Implemented;
+            public RuleType Value;
+        }
+
+        private static readonly FieldInfo[] _ruleTypes;
+        private static readonly Dictionary<string, RuleTypeItem> _lookupTable;
+
+        static RuleTypeHelper()
+        {
+            _ruleTypes = typeof(RuleType).GetFields(BindingFlags.Static | BindingFlags.Public);
+            _lookupTable = new Dictionary<string, RuleTypeItem>();
+            foreach (var i in _ruleTypes)
+            {
+                var item = new RuleTypeItem
+                {
+                    Implemented = !i.GetCustomAttributes<NotImplementedAttribute>().Any(),
+                    Name = i.Name,
+                    Value = (RuleType) Enum.Parse(typeof(RuleType), i.Name)
+                };
+                var targetCount = i.GetCustomAttributes<TargetCountAttribute>().ToList();
+                if (targetCount.Count > 0)
+                {
+                    var tc = targetCount[0];
+                    item.MinCount = tc.MinCount;
+                    item.MaxCount = tc.MaxCount;
+                }
+                _lookupTable[i.Name] = item;
+            }
+        }
+
+        public static string[] GetAll()
+        {
+            return _lookupTable.Where(f => f.Value.Implemented).Select(f => f.Key).ToArray();
+        }
+
+        public static RuleType Get(string name)
+        {
+            return _lookupTable[name].Value;
+        }
+
+        public static bool TargetCorrect(Rule rule)
+        {
+            if (rule.Type == RuleType.None)
+            {
+                return false;
+            }
+            var item = _lookupTable[rule.Type.ToString()];
+            if (rule.Target.Count >= item.MinCount && rule.Target.Count <= item.MaxCount)
+            {
+                return true;
+            }
+            if (item.MaxCount == 0)
+            {
+                rule.Target.Clear();
+                return true;
+            }
+            return false;
+        }
     }
 
     public enum RuleType
     {
-        [NotIImplemented]
+        [NotImplemented]
         None,
 
         /// <summary>
         /// Two main diagonal contains unique numbers.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0)]
         Diagonals,
 
         /// <summary>
@@ -42,7 +112,7 @@ namespace Chireiden.SudokuSolver
         /// -xxx-xxx-
         /// ---------
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Windoku,
 
         /// <summary>
@@ -78,96 +148,96 @@ namespace Chireiden.SudokuSolver
         /// <summary>
         /// Sum of each row/column in square is divisible by 3.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         DivisibleByThree,
 
         /// <summary>
         /// Any two adjacent cells must be consecutive.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Touchy,
 
         /// <summary>
         /// Sum of any two adjacent cells can not be 10.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         NoTen,
 
         /// <summary>
         /// Target cells are even.
         /// </summary>
-        [TargetCount(1, MaxCount = 36), NotIImplemented]
+        [TargetCount(1, MaxCount = 36), NotImplemented]
         Even,
 
         /// <summary>
         /// Target cells are odd.
         /// </summary>
-        [TargetCount(1, MaxCount = 45), NotIImplemented]
+        [TargetCount(1, MaxCount = 45), NotImplemented]
         Odd,
 
         /// <summary>
         /// Any 2x2 region contains both even and odd.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Quadro,
 
         /// <summary>
         /// Any two 9s can not be in same diagonal.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Queen,
 
         /// <summary>
         /// Target cells are the average of vertical adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 7), NotIImplemented]
+        [TargetCount(1, MaxCount = 7), NotImplemented]
         AverageV,
 
         /// <summary>
         /// Target cells are the average of horizontal adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 7), NotIImplemented]
+        [TargetCount(1, MaxCount = 7), NotImplemented]
         AverageH,
 
         /// <summary>
         /// The squares in the corner are mirror to the opposite one.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Mirror,
 
         /// <summary>
         /// Given 1x4, 2x3, 3x2, 4x1 arrays. They will be placed in the sudoku without touching each other.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 4), NotIImplemented]
+        [TargetCount(1, MaxCount = 4), NotImplemented]
         Battleship,
 
         /// <summary>
         /// Target cells are greater than adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1), NotIImplemented]
+        [TargetCount(1), NotImplemented]
         Fortress,
 
         /// <summary>
         /// Target cells are smaller than other cells in the square.
         /// Low priority.
         /// </summary>
-        [TargetCount(1), NotIImplemented]
+        [TargetCount(1), NotImplemented]
         Stripes,
 
         /// <summary>
         /// Two main diagonal contains only 3 different numbers.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         AntiDiagonal,
 
         /// <summary>
@@ -183,86 +253,86 @@ namespace Chireiden.SudokuSolver
         /// |--<--<--
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotIImplemented]
+        [TargetCount(0), NotImplemented]
         Snail,
 
         /// <summary>
         /// Same product for cross numbers
         /// Low priority.
         /// </summary>
-        [TargetCount(4), NotIImplemented]
+        [TargetCount(4), NotImplemented]
         EqualProduct,
 
-        [NotIImplemented]
+        [NotImplemented]
         NoEvenNeighbours,
 
-        [NotIImplemented]
+        [NotImplemented]
         OddSum,
 
-        [NotIImplemented]
+        [NotImplemented]
         EvenSum,
 
-        [NotIImplemented]
+        [NotImplemented]
         MultiplicationTable,
 
-        [NotIImplemented]
+        [NotImplemented]
         Figure,
 
-        [NotIImplemented]
+        [NotImplemented]
         Sequence,
 
-        [NotIImplemented]
+        [NotImplemented]
         NoTouch,
 
-        [NotIImplemented]
+        [NotImplemented]
         Pandigital,
 
-        [NotIImplemented]
+        [NotImplemented]
         MagicSquare,
 
-        [NotIImplemented]
+        [NotImplemented]
         External,
 
-        [NotIImplemented]
+        [NotImplemented]
         Blackout,
 
-        [NotIImplemented]
+        [NotImplemented]
         ProductFrame,
 
-        [NotIImplemented]
+        [NotImplemented]
         Quadruple,
 
-        [NotIImplemented]
+        [NotImplemented]
         Triplesum,
 
-        [NotIImplemented]
+        [NotImplemented]
         Kropki,
 
-        [NotIImplemented]
+        [NotImplemented]
         Skyscraper,
 
-        [NotIImplemented]
+        [NotImplemented]
         Arithmetic,
 
-        [NotIImplemented]
+        [NotImplemented]
         Coded,
 
-        [NotIImplemented]
+        [NotImplemented]
         EqualSum,
 
-        [NotIImplemented]
+        [NotImplemented]
         Palindrome,
 
-        [NotIImplemented]
+        [NotImplemented]
         Quadmax,
 
-        [NotIImplemented]
+        [NotImplemented]
         SubFrame,
 
-        [NotIImplemented]
+        [NotImplemented]
         NoKnightStep,
 
-        [NotIImplemented]
+        [NotImplemented]
         Trio
     }
 }

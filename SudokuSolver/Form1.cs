@@ -40,13 +40,7 @@ namespace Chireiden.SudokuSolver
             this.dataGridView.KeyUp += this.DataGridView_KeyUp;
             this.dataGridView.CellEnter += this.DataGridView_CellEnter;
             this.comboBoxRule.Items.Clear();
-            foreach (var fieldInfo in typeof(RuleType).GetFields(BindingFlags.Static | BindingFlags.Public))
-            {
-                if (!fieldInfo.GetCustomAttributes<NotIImplementedAttribute>().Any())
-                {
-                    this.comboBoxRule.Items.Add(fieldInfo.Name);
-                }
-            }
+            this.comboBoxRule.Items.AddRange(RuleTypeHelper.GetAll());
             this.comboBoxRule.SelectedIndex = 0;
             this.pictureBox1.LoadCompleted += this.PictureBox1_LoadCompleted;
             this.pictureBox1.LoadAsync("https://www.sgkoishi.app/img/koishi.png");
@@ -75,8 +69,19 @@ namespace Chireiden.SudokuSolver
             {
                 number = e.KeyValue - 96;
             }
-            this.dataGridView.CurrentCell.Value = number > 0 ? number.ToString() : "";
-            this.solver.resultArray[this.dataGridView.CurrentCellAddress.Y, this.dataGridView.CurrentCellAddress.X] = number;
+            if (number == 0)
+            {
+                foreach (DataGridViewTextBoxCell item in this.dataGridView.SelectedCells)
+                {
+                    this.dataGridView.Rows[item.RowIndex].Cells[item.ColumnIndex].Value = "";
+                    this.solver.resultArray[item.RowIndex, item.ColumnIndex] = 0;
+                }
+            }
+            else
+            {
+                this.dataGridView.CurrentCell.Value = number.ToString();
+                this.solver.resultArray[this.dataGridView.CurrentCellAddress.Y, this.dataGridView.CurrentCellAddress.X] = number;
+            }
         }
 
         public Rule currentRule = new Rule();
@@ -111,7 +116,7 @@ namespace Chireiden.SudokuSolver
 
         private void UpdateListBox()
         {
-            this.currentRule.Type = (RuleType) Enum.Parse(typeof(RuleType), (string) this.comboBoxRule.SelectedItem);
+            this.currentRule.Type = RuleTypeHelper.Get((string) this.comboBoxRule.SelectedItem);
             this.listBoxRules.Items.Clear();
             this.listBoxRules.Items.AddRange(this.solver.extraRules.Select(i => i.ToString()).Cast<object>().ToArray());
             this.textBoxLogs.Text = this.currentRule.ToString();
@@ -123,17 +128,23 @@ namespace Chireiden.SudokuSolver
             new Thread(() =>
             {
                 var result = this.solver.Solve();
+                if (result == null)
+                {
+                    this.labelLog.Invoke(new MethodInvoker(() => this.labelLog.Text = $"SudokuNotSolved!"));
+                    return;
+                }
                 for (var i = 0; i < this.solver.Height; i++)
                 {
                     for (var j = 0; j < this.solver.Width; j++)
                     {
                         this.dataGridView.Rows[i].Cells[j].Value = result[i, j];
+                        this.solver.resultArray[i, j] = int.Parse(result[i, j]);
                     }
                 }
-                this.buttonStart.Enabled = true;
+                this.buttonStart.Invoke(new MethodInvoker(() => this.buttonStart.Enabled = true));
                 var endTime = DateTime.Now;
                 var take = endTime - startTime;
-                this.labelLog.Text = $"[{endTime:hh:mm:ss}] Done in {take:mm':'ss':'fff}.";
+                this.labelLog.Invoke(new MethodInvoker(() => this.labelLog.Text = $"[{endTime:hh:mm:ss}] Done in {take:mm':'ss':'fff}."));
             }).Start();
             this.buttonStart.Enabled = false;
             this.labelLog.Text = $"[{startTime:hh:mm:ss}] Start solve.";
