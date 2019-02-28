@@ -1,17 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows.Forms;
 
-namespace SudokuSolver
+namespace Chireiden.SudokuSolver
 {
     public partial class Form1 : Form
     {
@@ -20,6 +16,8 @@ namespace SudokuSolver
         public Form1()
         {
             this.InitializeComponent();
+            this.Text += " v" + Assembly.GetExecutingAssembly().GetName().Version;
+            this.buttonStart.Focus();
             this.dataGridView.RowHeadersVisible = this.dataGridView.ColumnHeadersVisible = false;
             for (var i = 0; i < 9; i++)
             {
@@ -49,11 +47,20 @@ namespace SudokuSolver
                     this.comboBoxRule.Items.Add(fieldInfo.Name);
                 }
             }
+            this.comboBoxRule.SelectedIndex = 0;
+            this.pictureBox1.LoadCompleted += this.PictureBox1_LoadCompleted;
+            this.pictureBox1.LoadAsync("https://www.sgkoishi.app/img/koishi.png");
+        }
+
+        private void PictureBox1_LoadCompleted(object sender, AsyncCompletedEventArgs e)
+        {
+            this.label1.Location = new Point(92, 62);
+            this.label1.Text = e.Error != null || e.Cancelled ? "There should be a icon in the picture box ->" : "";
         }
 
         private void DataGridView_CellEnter(object sender, DataGridViewCellEventArgs e)
         {
-            this.currentRule.Target = this.dataGridView.SelectedCells.Cast<DataGridViewCell>().Select(i => new Point(i.ColumnIndex, i.RowIndex)).Reverse().ToList();
+            this.currentRule.Target = this.dataGridView.SelectedCells.Cast<DataGridViewCell>().Select(i => new Point(i.RowIndex, i.ColumnIndex)).Reverse().ToList();
             this.UpdateListBox();
         }
 
@@ -69,6 +76,7 @@ namespace SudokuSolver
                 number = e.KeyValue - 96;
             }
             this.dataGridView.CurrentCell.Value = number > 0 ? number.ToString() : "";
+            this.solver.resultArray[this.dataGridView.CurrentCellAddress.Y, this.dataGridView.CurrentCellAddress.X] = number;
         }
 
         public Rule currentRule = new Rule();
@@ -103,9 +111,54 @@ namespace SudokuSolver
 
         private void UpdateListBox()
         {
+            this.currentRule.Type = (RuleType) Enum.Parse(typeof(RuleType), (string) this.comboBoxRule.SelectedItem);
             this.listBoxRules.Items.Clear();
             this.listBoxRules.Items.AddRange(this.solver.extraRules.Select(i => i.ToString()).Cast<object>().ToArray());
             this.textBoxLogs.Text = this.currentRule.ToString();
+        }
+
+        private void ButtonStart_Click(object sender, EventArgs e)
+        {
+            var startTime = DateTime.Now;
+            new Thread(() =>
+            {
+                var result = this.solver.Solve();
+                for (var i = 0; i < this.solver.Height; i++)
+                {
+                    for (var j = 0; j < this.solver.Width; j++)
+                    {
+                        this.dataGridView.Rows[i].Cells[j].Value = result[i, j];
+                    }
+                }
+                this.buttonStart.Enabled = true;
+                var endTime = DateTime.Now;
+                var take = endTime - startTime;
+                this.labelLog.Text = $"[{endTime:hh:mm:ss}] Done in {take:mm':'ss':'fff}.";
+            }).Start();
+            this.buttonStart.Enabled = false;
+            this.labelLog.Text = $"[{startTime:hh:mm:ss}] Start solve.";
+        }
+
+        private void ComboBoxRule_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            this.UpdateListBox();
+        }
+
+        private void TextBoxExtra_Validating(object sender, CancelEventArgs e)
+        {
+            var s = this.textBoxExtra.Text;
+            if (string.IsNullOrWhiteSpace(s))
+            {
+                this.currentRule.Extra = 0;
+            }
+            else if (!int.TryParse(s, out var value))
+            {
+                e.Cancel = true;
+            }
+            else
+            {
+                this.currentRule.Extra = value;
+            }
         }
     }
 }

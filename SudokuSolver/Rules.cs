@@ -2,10 +2,8 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace SudokuSolver
+namespace Chireiden.SudokuSolver
 {
     public class Rule
     {
@@ -36,7 +34,7 @@ namespace SudokuSolver
 
         public override string ToString()
         {
-            return Enum.GetName(typeof(RuleType), this.Type) + " " + string.Join(" ", this.Target.Select(i => ((char) (i.Y + 65)).ToString() + (i.X + 1))) + (this.Extra != 0 ? " " + this.Extra : "");
+            return Enum.GetName(typeof(RuleType), this.Type) + " " + string.Join(" ", this.Target.Select(i => ((char) (i.X + 65)).ToString() + (i.Y + 1))) + (this.Extra != 0 ? " " + this.Extra : "");
         }
     }
 }

@@ -1,11 +1,10 @@
-﻿using System;
+﻿using Microsoft.Z3;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Z3;
-namespace SudokuSolver
+
+namespace Chireiden.SudokuSolver
 {
     public class Solver
     {
@@ -88,7 +87,7 @@ namespace SudokuSolver
             this._rules = list.AsReadOnly();
         }
 
-        public int[,] Solve()
+        public string[,] Solve()
         {
             var list = new List<BoolExpr>();
             for (var i = 0; i < this.Height; i++)
@@ -118,7 +117,7 @@ namespace SudokuSolver
                     }
                     case RuleType.GT:
                     {
-                        list.Add(this._ctx.MkGt(this.array[item.Target[0].X, item.Target[0].Y], this.array[item.Target[1].X, item.Target[1].Y]));
+                        list.Add(this._ctx.MkGt(elements[0], elements[1]));
                         break;
                     }
                     case RuleType.Consecutive:
@@ -145,8 +144,9 @@ namespace SudokuSolver
             }
 
             var s = this._ctx.MkSolver();
+            s.Assert(this._ctx.MkAnd(this._rules));
             s.Assert(this._ctx.MkAnd(list));
-            var result = new int[9, 9];
+            var result = new string[9, 9];
             if (s.Check() == Status.SATISFIABLE)
             {
                 var m = s.Model;
@@ -154,7 +154,7 @@ namespace SudokuSolver
                 {
                     for (var j = 0; j < this.Width; j++)
                     {
-                        result[i, j] = int.Parse(m.Evaluate(this.array[i, j]).ToString());
+                        result[i, j] = m.Evaluate(this.array[i, j]).ToString();
                     }
                 }
                 return result;
