@@ -6,20 +6,18 @@ using System.Reflection;
 namespace Chireiden.SudokuSolver
 {
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public sealed class TargetCountAttribute : Attribute
+    public sealed class RuleInfoAttribute : Attribute
     {
-        public TargetCountAttribute(int minCount)
+        public RuleInfoAttribute(int minCount)
         {
             this.MaxCount = this.MinCount = minCount;
         }
 
         public int MinCount { get; }
         public int MaxCount { get; set; }
-    }
-
-    [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public sealed class NotImplementedAttribute : Attribute
-    {
+        public bool NotImplemented { get; set; }
+        public bool GlobalUnique { get; set; }
+        public bool Outside { get; set; }
     }
 
     public static class RuleTypeHelper
@@ -30,6 +28,8 @@ namespace Chireiden.SudokuSolver
             public int MinCount;
             public int MaxCount;
             public bool Implemented;
+            public bool Unique;
+            public bool Outside;
             public RuleType Value;
         }
 
@@ -44,16 +44,17 @@ namespace Chireiden.SudokuSolver
             {
                 var item = new RuleTypeItem
                 {
-                    Implemented = !i.GetCustomAttributes<NotImplementedAttribute>().Any(),
                     Name = i.Name,
                     Value = (RuleType) Enum.Parse(typeof(RuleType), i.Name)
                 };
-                var targetCount = i.GetCustomAttributes<TargetCountAttribute>().ToList();
+                var targetCount = i.GetCustomAttributes<RuleInfoAttribute>().ToList();
                 if (targetCount.Count > 0)
                 {
                     var tc = targetCount[0];
                     item.MinCount = tc.MinCount;
                     item.MaxCount = tc.MaxCount;
+                    item.Outside = tc.Outside;
+                    item.Unique = tc.GlobalUnique;
                 }
                 _lookupTable[i.Name] = item;
             }
@@ -91,13 +92,13 @@ namespace Chireiden.SudokuSolver
 
     public enum RuleType
     {
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         None,
 
         /// <summary>
         /// Two main diagonal contains unique numbers.
         /// </summary>
-        [TargetCount(0)]
+        [RuleInfo(0)]
         Diagonals,
 
         /// <summary>
@@ -112,132 +113,132 @@ namespace Chireiden.SudokuSolver
         /// -xxx-xxx-
         /// ---------
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0)]
         Windoku,
 
         /// <summary>
         /// One cell is greater than other.
         /// </summary>
-        [TargetCount(2)]
+        [RuleInfo(2)]
         GT,
 
         /// <summary>
         /// Two cells are consecutive.
         /// </summary>
-        [TargetCount(2)]
+        [RuleInfo(2)]
         Consecutive,
 
         /// <summary>
         /// Sum of given region = given number.
         /// </summary>
-        [TargetCount(1, MaxCount = 9)]
+        [RuleInfo(1, MaxCount = 9)]
         Killer,
 
         /// <summary>
         /// Sum of two cells = 5
         /// </summary>
-        [TargetCount(2)]
+        [RuleInfo(2)]
         V,
 
         /// <summary>
         /// Sum of two cells = 10
         /// </summary>
-        [TargetCount(2)]
+        [RuleInfo(2)]
         X,
 
         /// <summary>
         /// Sum of each row/column in square is divisible by 3.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         DivisibleByThree,
 
         /// <summary>
         /// Any two adjacent cells must be consecutive.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Touchy,
 
         /// <summary>
         /// Sum of any two adjacent cells can not be 10.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         NoTen,
 
         /// <summary>
         /// Target cells are even.
         /// </summary>
-        [TargetCount(1, MaxCount = 36), NotImplemented]
+        [RuleInfo(1, MaxCount = 36, NotImplemented = true)]
         Even,
 
         /// <summary>
         /// Target cells are odd.
         /// </summary>
-        [TargetCount(1, MaxCount = 45), NotImplemented]
+        [RuleInfo(1, MaxCount = 45, NotImplemented = true)]
         Odd,
 
         /// <summary>
         /// Any 2x2 region contains both even and odd.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Quadro,
 
         /// <summary>
         /// Any two 9s can not be in same diagonal.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Queen,
 
         /// <summary>
         /// Target cells are the average of vertical adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 7), NotImplemented]
+        [RuleInfo(1, MaxCount = 7, NotImplemented = true)]
         AverageV,
 
         /// <summary>
         /// Target cells are the average of horizontal adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 7), NotImplemented]
+        [RuleInfo(1, MaxCount = 7, NotImplemented = true)]
         AverageH,
 
         /// <summary>
         /// The squares in the corner are mirror to the opposite one.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Mirror,
 
         /// <summary>
         /// Given 1x4, 2x3, 3x2, 4x1 arrays. They will be placed in the sudoku without touching each other.
         /// Low priority.
         /// </summary>
-        [TargetCount(1, MaxCount = 4), NotImplemented]
+        [RuleInfo(1, MaxCount = 4, NotImplemented = true)]
         Battleship,
 
         /// <summary>
         /// Target cells are greater than adjacent cells.
         /// Low priority.
         /// </summary>
-        [TargetCount(1), NotImplemented]
+        [RuleInfo(1, NotImplemented = true)]
         Fortress,
 
         /// <summary>
         /// Target cells are smaller than other cells in the square.
         /// Low priority.
         /// </summary>
-        [TargetCount(1), NotImplemented]
+        [RuleInfo(1, NotImplemented = true)]
         Stripes,
 
         /// <summary>
         /// Two main diagonal contains only 3 different numbers.
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         AntiDiagonal,
 
         /// <summary>
@@ -253,86 +254,140 @@ namespace Chireiden.SudokuSolver
         /// |--<--<--
         /// Low priority.
         /// </summary>
-        [TargetCount(0), NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Snail,
 
         /// <summary>
         /// Same product for cross numbers
         /// Low priority.
         /// </summary>
-        [TargetCount(4), NotImplemented]
+        [RuleInfo(4, NotImplemented = true)]
         EqualProduct,
 
-        [NotImplemented]
+        /// <summary>
+        /// Even numbers cannot be adjacent to each other.
+        /// </summary>
+        [RuleInfo(0, NotImplemented = true)]
         NoEvenNeighbours,
 
-        [NotImplemented]
+        /// <summary>
+        /// Sum of target cells is odd number.
+        /// </summary>
+        [RuleInfo(1, MaxCount = 9, NotImplemented = true)]
         OddSum,
 
-        [NotImplemented]
+        /// <summary>
+        /// Sum of target cells is even number.
+        /// </summary>
+        [RuleInfo(1, MaxCount = 9, NotImplemented = true)]
         EvenSum,
 
-        [NotImplemented]
+        /// <summary>
+        /// A * B = CD
+        /// </summary>
+        [RuleInfo(4, NotImplemented = true)]
         MultiplicationTable,
 
-        [NotImplemented]
+        /// <summary>
+        /// All figures (rotated and/or mirrored) of each shape contain the same set of digits.
+        /// <see cref="http://rohanrao.blogspot.com/2009/08/rules-of-figure-sudoku.html"/>
+        /// </summary>
+        [RuleInfo(1, MaxCount = 9, NotImplemented = true)]
         Figure,
 
-        [NotImplemented]
+        /// <summary>
+        /// Target cells are in order, sequential, even or odd.
+        /// </summary>
+        [RuleInfo(1, MaxCount = 9, NotImplemented = true)]
         Sequence,
 
-        [NotImplemented]
+        /// <summary>
+        /// Target cells are in order, sequential, even or odd.
+        /// </summary>
+        [RuleInfo(0, NotImplemented = true)]
         NoTouch,
 
-        [NotImplemented]
+        /// <summary>
+        /// A1A2A3 + A4A5A6 = A7A8A9
+        /// A5B5C5 + D5E5F5 = G5H5I5
+        /// etc
+        /// </summary>
+        [RuleInfo(9, NotImplemented = true)]
         Pandigital,
 
-        [NotImplemented]
+        /// <summary>
+        /// Target squares have same number in their diagonals.
+        /// </summary>
+        [RuleInfo(9, NotImplemented = true)]
         MagicSquare,
 
-        [NotImplemented]
+        /// <summary>
+        /// <see cref="http://rohanrao.blogspot.com/2009/06/rules-of-external-sudoku.html"/>
+        /// </summary>
+        [RuleInfo(0, NotImplemented = true)]
         External,
 
-        [NotImplemented]
+        /// <summary>
+        /// Numbers outside indicate the digit that is not present in corresponding row or column.
+        /// </summary>
+        [RuleInfo(9, NotImplemented = true)]
+        Missing,
+
+        /// <summary>
+        /// Numbers with arrows outside the grid indicate the sum of the numbers in the corresponding direction.
+        /// </summary>
+        [RuleInfo(0, NotImplemented = true)]
+        LittleKiller,
+
+        /// <summary>
+        /// Target cells don't contain number.
+        /// </summary>
+        [RuleInfo(1, MaxCount = 80, NotImplemented = true)]
         Blackout,
 
-        [NotImplemented]
+        /// <summary>
+        /// Numbers outside indicate the product of first three numbers in corresponding row or column.
+        /// </summary>
+        [RuleInfo(3, NotImplemented = true)]
         ProductFrame,
 
-        [NotImplemented]
+        /// <summary>
+        /// Numbers outside indicate the product of first three numbers in corresponding row or column.
+        /// </summary>
+        [RuleInfo(0, NotImplemented = true)]
         Quadruple,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Triplesum,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Kropki,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Skyscraper,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Arithmetic,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Coded,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         EqualSum,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Palindrome,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Quadmax,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         SubFrame,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         NoKnightStep,
 
-        [NotImplemented]
+        [RuleInfo(0, NotImplemented = true)]
         Trio
     }
 }

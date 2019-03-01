@@ -60,32 +60,56 @@ namespace Chireiden.SudokuSolver
 
         private void DataGridView_KeyUp(object sender, KeyEventArgs e)
         {
-            var number = 0;
-            if (e.KeyValue >= 48 && e.KeyValue <= 57)
+            if (e.Control && e.KeyValue == (int) Keys.V) // Ctrl + V
             {
-                number = e.KeyValue - 48;
-            }
-            else if (e.KeyValue >= 96 && e.KeyValue <= 105)
-            {
-                number = e.KeyValue - 96;
-            }
-            if (number == 0)
-            {
-                foreach (DataGridViewTextBoxCell item in this.dataGridView.SelectedCells)
+                var input = Clipboard.GetText().Trim().Replace("\r", "").Replace("\n", "").Replace(" ", "").Replace("\t", "");
+                if (input.Length == this.solver.Width * this.solver.Height)
                 {
-                    this.dataGridView.Rows[item.RowIndex].Cells[item.ColumnIndex].Value = "";
-                    this.solver.resultArray[item.RowIndex, item.ColumnIndex] = 0;
+                    for (var i = 0; i < input.Length; i++)
+                    {
+                        int.TryParse(input[i].ToString(), out var value);
+                        this.SetElement(i / this.solver.Width, i % this.solver.Width, value);
+                    }
                 }
             }
-            else
+            var number = 0;
+            var change = false;
+            if (e.KeyValue >= (int) Keys.D0 && e.KeyValue <= (int) Keys.D9)
             {
-                this.dataGridView.CurrentCell.Value = number.ToString();
-                this.solver.resultArray[this.dataGridView.CurrentCellAddress.Y, this.dataGridView.CurrentCellAddress.X] = number;
+                number = e.KeyValue - 48;
+                change = true;
+            }
+            else if (e.KeyValue >= (int) Keys.NumPad0 && e.KeyValue <= (int) Keys.NumPad9)
+            {
+                number = e.KeyValue - 96;
+                change = true;
+            }
+            if (e.KeyValue == (int) Keys.Back || e.KeyValue == (int) Keys.Delete)
+            {
+                change = true;
+            }
+            if (change)
+            {
+                if (number == 0)
+                {
+                    foreach (DataGridViewTextBoxCell item in this.dataGridView.SelectedCells)
+                    {
+                        this.SetElement(item.RowIndex, item.ColumnIndex, 0);
+                    }
+                }
+                else
+                {
+                    this.SetElement(this.dataGridView.CurrentCell.RowIndex, this.dataGridView.CurrentCell.ColumnIndex, number);
+                }
             }
         }
 
         public Rule currentRule = new Rule();
-
+        public void SetElement(int x, int y, int number)
+        {
+            this.solver.resultArray[x, y] = number;
+            this.dataGridView.Rows[x].Cells[y].Value = number == 0 ? "" : number.ToString();
+        }
         private void ButtonOK_Click(object sender, EventArgs e)
         {
             if (this.currentRule.Valid())
@@ -131,14 +155,14 @@ namespace Chireiden.SudokuSolver
                 if (result == null)
                 {
                     this.labelLog.Invoke(new MethodInvoker(() => this.labelLog.Text = $"SudokuNotSolved!"));
+                    this.buttonStart.Invoke(new MethodInvoker(() => this.buttonStart.Enabled = true));
                     return;
                 }
                 for (var i = 0; i < this.solver.Height; i++)
                 {
                     for (var j = 0; j < this.solver.Width; j++)
                     {
-                        this.dataGridView.Rows[i].Cells[j].Value = result[i, j];
-                        this.solver.resultArray[i, j] = int.Parse(result[i, j]);
+                        this.SetElement(i, j, int.Parse(result[i, j]));
                     }
                 }
                 this.buttonStart.Invoke(new MethodInvoker(() => this.buttonStart.Enabled = true));

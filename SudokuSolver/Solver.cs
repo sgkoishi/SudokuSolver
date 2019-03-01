@@ -153,6 +153,26 @@ namespace Chireiden.SudokuSolver
                         list.Add(this._ctx.MkDistinct(right));
                         break;
                     }
+                    case RuleType.Windoku:
+                    {
+                        foreach (var squarei in new int[] {1, 5})
+                        {
+                            foreach (var squarej in new int[] { 1, 5 })
+                            {
+                                var square = new IntExpr[this.SquareWidth * this.SquareHeight];
+                                for (var i = 0; i < this.SquareWidth; i++)
+                                {
+                                    for (var j = 0; j < this.SquareHeight; j++)
+                                    {
+                                        square[(this.SquareWidth * i) + j] = this.array[squarei + i, squarej + j];
+                                    }
+                                }
+                                // Square
+                                list.Add(this._ctx.MkDistinct(square));
+                            }
+                        }
+                        break;
+                    }
                 }
             }
 
