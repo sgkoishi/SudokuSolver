@@ -38,7 +38,7 @@
             this.textBoxExtra = new System.Windows.Forms.TextBox();
             this.buttonCancel = new System.Windows.Forms.Button();
             this.buttonAdd = new System.Windows.Forms.Button();
-            this.dataGridView = new System.Windows.Forms.DataGridView();
+            this.dataGridView = new Chireiden.SudokuSolver.TransparentDataGridView();
             this.buttonStart = new System.Windows.Forms.Button();
             this.labelLog = new System.Windows.Forms.Label();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
@@ -228,7 +228,7 @@
         private System.Windows.Forms.TextBox textBoxExtra;
         private System.Windows.Forms.Button buttonCancel;
         private System.Windows.Forms.Button buttonAdd;
-        private System.Windows.Forms.DataGridView dataGridView;
+        private Chireiden.SudokuSolver.TransparentDataGridView dataGridView;
         private System.Windows.Forms.ListBox listBoxRules;
         private System.Windows.Forms.TextBox textBoxLogs;
         private System.Windows.Forms.Button buttonClear;
