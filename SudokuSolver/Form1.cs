@@ -12,6 +12,7 @@ namespace Chireiden.SudokuSolver
     public partial class Form1 : Form
     {
         private readonly Solver solver = new Solver();
+        public Rule currentRule = new Rule();
 
         public Form1()
         {
@@ -60,16 +61,32 @@ namespace Chireiden.SudokuSolver
 
         private void DataGridView_KeyUp(object sender, KeyEventArgs e)
         {
-            if (e.Control && e.KeyValue == (int) Keys.V) // Ctrl + V
+            if (e.Control)
             {
-                var input = Clipboard.GetText().Trim().Replace("\r", "").Replace("\n", "").Replace(" ", "").Replace("\t", "");
-                if (input.Length == this.solver.Width * this.solver.Height)
+                if (e.KeyValue == (int) Keys.V)
                 {
-                    for (var i = 0; i < input.Length; i++)
+                    var input = Clipboard.GetText().Trim().Replace("\r", "").Replace("\n", "").Replace(" ", "").Replace("\t", "");
+                    if (input.Length == this.solver.Width * this.solver.Height)
                     {
-                        int.TryParse(input[i].ToString(), out var value);
-                        this.SetElement(i / this.solver.Width, i % this.solver.Width, value);
+                        this.dataGridView.SuspendLayout();
+                        for (var i = 0; i < input.Length; i++)
+                        {
+                            int.TryParse(input[i].ToString(), out var value);
+                            this.SetElement(i / this.solver.Width, i % this.solver.Width, value);
+                        }
+                        this.dataGridView.ResumeLayout();
                     }
+                    return;
+                }
+                else if (e.KeyValue == (int) Keys.C)
+                {
+                    var result = "";
+                    for (var i = 0; i < this.solver.Width * this.solver.Height; i++)
+                    {
+                        result += this.solver.resultArray[i / this.solver.Width, i % this.solver.Width];
+                    }
+                    Clipboard.SetText(result.Replace("0", "."));
+                    return;
                 }
             }
             var number = 0;
@@ -92,10 +109,12 @@ namespace Chireiden.SudokuSolver
             {
                 if (number == 0)
                 {
+                    this.dataGridView.SuspendLayout();
                     foreach (DataGridViewTextBoxCell item in this.dataGridView.SelectedCells)
                     {
                         this.SetElement(item.RowIndex, item.ColumnIndex, 0);
                     }
+                    this.dataGridView.ResumeLayout();
                 }
                 else
                 {
@@ -104,16 +123,19 @@ namespace Chireiden.SudokuSolver
             }
         }
 
-        public Rule currentRule = new Rule();
-        public void SetElement(int x, int y, int number)
-        {
-            this.solver.resultArray[x, y] = number;
-            this.dataGridView.Rows[x].Cells[y].Value = number == 0 ? "" : number.ToString();
-        }
         private void ButtonOK_Click(object sender, EventArgs e)
         {
             if (this.currentRule.Valid())
             {
+                foreach (var item in this.solver.extraRules)
+                {
+                    if (item.Type == this.currentRule.Type && RuleTypeHelper.Table[item.Type.ToString()].Unique)
+                    {
+                        this.currentRule = new Rule();
+                        this.UpdateListBox();
+                        return;
+                    }
+                }
                 this.solver.extraRules.Add(this.currentRule);
             }
             this.currentRule = new Rule();
@@ -138,14 +160,6 @@ namespace Chireiden.SudokuSolver
             this.UpdateListBox();
         }
 
-        private void UpdateListBox()
-        {
-            this.currentRule.Type = RuleTypeHelper.Get((string) this.comboBoxRule.SelectedItem);
-            this.listBoxRules.Items.Clear();
-            this.listBoxRules.Items.AddRange(this.solver.extraRules.Select(i => i.ToString()).Cast<object>().ToArray());
-            this.textBoxLogs.Text = this.currentRule.ToString();
-        }
-
         private void ButtonStart_Click(object sender, EventArgs e)
         {
             var startTime = DateTime.Now;
@@ -154,10 +168,11 @@ namespace Chireiden.SudokuSolver
                 var result = this.solver.Solve();
                 if (result == null)
                 {
-                    this.labelLog.Invoke(new MethodInvoker(() => this.labelLog.Text = $"SudokuNotSolved!"));
+                    this.labelLog.Invoke(new MethodInvoker(() => this.labelLog.Text = "SudokuNotSolved!"));
                     this.buttonStart.Invoke(new MethodInvoker(() => this.buttonStart.Enabled = true));
                     return;
                 }
+                this.dataGridView.SuspendLayout();
                 for (var i = 0; i < this.solver.Height; i++)
                 {
                     for (var j = 0; j < this.solver.Width; j++)
@@ -165,6 +180,7 @@ namespace Chireiden.SudokuSolver
                         this.SetElement(i, j, int.Parse(result[i, j]));
                     }
                 }
+                this.dataGridView.ResumeLayout();
                 this.buttonStart.Invoke(new MethodInvoker(() => this.buttonStart.Enabled = true));
                 var endTime = DateTime.Now;
                 var take = endTime - startTime;
@@ -194,6 +210,28 @@ namespace Chireiden.SudokuSolver
             {
                 this.currentRule.Extra = value;
             }
+        }
+
+        public void SetElement(int x, int y, int number)
+        {
+            this.solver.resultArray[x, y] = number;
+            this.dataGridView.Rows[x].Cells[y].Value = number == 0 ? "" : number.ToString();
+        }
+
+        private void UpdateListBox()
+        {
+            this.currentRule.Type = RuleTypeHelper.Get((string) this.comboBoxRule.SelectedItem);
+            var ti = this.listBoxRules.TopIndex;
+            var selected = this.listBoxRules.SelectedIndex;
+            // No idea why databinding not working so manually update listbox
+            this.listBoxRules.Items.Clear();
+            this.listBoxRules.Items.AddRange(this.solver.extraRules.Select(i => i.ToString()).Cast<object>().ToArray());
+            this.listBoxRules.TopIndex = ti;
+            if (this.listBoxRules.Items.Count > 0)
+            {
+                this.listBoxRules.SelectedIndex = Math.Min(this.listBoxRules.Items.Count - 1, selected);
+            }
+            this.textBoxLogs.Text = this.currentRule.ToString();
         }
     }
 }

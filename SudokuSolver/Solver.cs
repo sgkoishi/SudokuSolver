@@ -108,7 +108,7 @@ namespace Chireiden.SudokuSolver
                 {
                     break;
                 }
-                var elements = item.Target.Select(p => this.array[p.X, p.Y]).ToList();
+                var cells = item.Target.Select(p => this.array[p.X, p.Y]).ToList();
                 switch (item.Type)
                 {
                     case RuleType.None:
@@ -117,27 +117,27 @@ namespace Chireiden.SudokuSolver
                     }
                     case RuleType.GT:
                     {
-                        list.Add(this._ctx.MkGt(elements[0], elements[1]));
+                        list.Add(this._ctx.MkGt(cells[0], cells[1]));
                         break;
                     }
                     case RuleType.Consecutive:
                     {
-                        list.Add(this._ctx.MkOr(this._ctx.MkGt(elements[0], elements[1]), this._ctx.MkLe(elements[0], elements[1])));
+                        list.Add(this._ctx.MkOr(this._ctx.MkGt(cells[0], cells[1]), this._ctx.MkLe(cells[0], cells[1])));
                         break;
                     }
                     case RuleType.V:
                     {
-                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements[0], elements[1]), this._ctx.MkInt(5)));
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells[0], cells[1]), this._ctx.MkInt(5)));
                         break;
                     }
                     case RuleType.X:
                     {
-                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements[0], elements[1]), this._ctx.MkInt(10)));
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells[0], cells[1]), this._ctx.MkInt(10)));
                         break;
                     }
                     case RuleType.Killer:
                     {
-                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(elements), this._ctx.MkInt(item.Extra)));
+                        list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells), this._ctx.MkInt(item.Extra)));
                         break;
                     }
                     case RuleType.Diagonals:
@@ -169,6 +169,34 @@ namespace Chireiden.SudokuSolver
                                 }
                                 // Square
                                 list.Add(this._ctx.MkDistinct(square));
+                            }
+                        }
+                        break;
+                    }
+                    case RuleType.Even:
+                    {
+                        foreach (var cell in cells)
+                        {
+                            list.Add(this._ctx.MkEq(this._ctx.MkMod(cell, this._ctx.MkInt(2)), this._ctx.MkInt(0)));
+                        }
+                        break;
+                    }
+                    case RuleType.Odd:
+                    {
+                        foreach (var cell in cells)
+                        {
+                            list.Add(this._ctx.MkEq(this._ctx.MkMod(cell, this._ctx.MkInt(2)), this._ctx.MkInt(1)));
+                        }
+                        break;
+                    }
+                    case RuleType.Mirror:
+                    {
+                        for (var i = 0; i < this.SquareHeight; i++)
+                        {
+                            for (var j = 0; j < this.SquareWidth; j++)
+                            {
+                                list.Add(this._ctx.MkEq(this.array[i, j], this.array[this.Height - i - 1, this.Width - j - 1]));
+                                list.Add(this._ctx.MkEq(this.array[i, this.Width - j - 1], this.array[this.Height - i - 1, j]));
                             }
                         }
                         break;
