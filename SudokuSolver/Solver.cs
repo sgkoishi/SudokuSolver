@@ -1,5 +1,4 @@
 ﻿using Microsoft.Z3;
-using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -111,36 +110,36 @@ namespace Chireiden.SudokuSolver
                 var cells = item.Target.Select(p => this.array[p.X, p.Y]).ToList();
                 switch (item.Type)
                 {
-                    case RuleType.None:
+                    case RuleInfo.None:
                     {
                         break;
                     }
-                    case RuleType.GT:
+                    case RuleInfo.GT:
                     {
                         list.Add(this._ctx.MkGt(cells[0], cells[1]));
                         break;
                     }
-                    case RuleType.Consecutive:
+                    case RuleInfo.Consecutive:
                     {
                         list.Add(this._ctx.MkOr(this._ctx.MkGt(cells[0], cells[1]), this._ctx.MkLe(cells[0], cells[1])));
                         break;
                     }
-                    case RuleType.V:
+                    case RuleInfo.V:
                     {
                         list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells[0], cells[1]), this._ctx.MkInt(5)));
                         break;
                     }
-                    case RuleType.X:
+                    case RuleInfo.X:
                     {
                         list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells[0], cells[1]), this._ctx.MkInt(10)));
                         break;
                     }
-                    case RuleType.Killer:
+                    case RuleInfo.Killer:
                     {
                         list.Add(this._ctx.MkEq(this._ctx.MkAdd(cells), this._ctx.MkInt(item.Extra)));
                         break;
                     }
-                    case RuleType.Diagonals:
+                    case RuleInfo.Diagonals:
                     {
                         var left = new IntExpr[this.Width];
                         var right = new IntExpr[this.Width];
@@ -153,7 +152,7 @@ namespace Chireiden.SudokuSolver
                         list.Add(this._ctx.MkDistinct(right));
                         break;
                     }
-                    case RuleType.Windoku:
+                    case RuleInfo.Windoku:
                     {
                         foreach (var squarei in new int[] {1, 5})
                         {
@@ -173,7 +172,7 @@ namespace Chireiden.SudokuSolver
                         }
                         break;
                     }
-                    case RuleType.Even:
+                    case RuleInfo.Even:
                     {
                         foreach (var cell in cells)
                         {
@@ -181,7 +180,7 @@ namespace Chireiden.SudokuSolver
                         }
                         break;
                     }
-                    case RuleType.Odd:
+                    case RuleInfo.Odd:
                     {
                         foreach (var cell in cells)
                         {
@@ -189,7 +188,7 @@ namespace Chireiden.SudokuSolver
                         }
                         break;
                     }
-                    case RuleType.Mirror:
+                    case RuleInfo.Mirror:
                     {
                         for (var i = 0; i < this.SquareHeight; i++)
                         {

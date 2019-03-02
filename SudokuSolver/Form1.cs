@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -13,13 +16,21 @@ namespace Chireiden.SudokuSolver
     {
         private readonly Solver solver = new Solver();
         public Rule currentRule = new Rule();
+        public Image Screenshot;
+        public Rectangle[,] Background;
+        public Dictionary<RuleInfo, bool>[,] RulesCovered = new Dictionary<RuleInfo, bool>[9, 9];
 
         public Form1()
         {
             this.InitializeComponent();
+            this.dataGridView.KeyUp += this.DataGridView_KeyUp;
+            this.dataGridView.CellEnter += this.DataGridView_CellEnter;
+            this.pictureBox1.LoadCompleted += this.PictureBox1_LoadCompleted;
+            this.dataGridView.CellPainting += this.DataGridView_CellPainting;
+            this.comboBoxRule.DrawItem += this.ComboBoxRule_DrawItem;
+            this.pictureBox1.LoadAsync("https://www.sgkoishi.app/img/koishi.png");
             this.Text += " v" + Assembly.GetExecutingAssembly().GetName().Version;
             this.buttonStart.Focus();
-            this.dataGridView.RowHeadersVisible = this.dataGridView.ColumnHeadersVisible = false;
             for (var i = 0; i < 9; i++)
             {
                 this.dataGridView.Columns.Add(new DataGridViewTextBoxColumn
@@ -38,13 +49,71 @@ namespace Chireiden.SudokuSolver
             this.dataGridView.Columns[5].DividerWidth = 2;
             this.dataGridView.Rows[2].DividerHeight = 2;
             this.dataGridView.Rows[5].DividerHeight = 2;
-            this.dataGridView.KeyUp += this.DataGridView_KeyUp;
-            this.dataGridView.CellEnter += this.DataGridView_CellEnter;
+            this.dataGridView.RowHeadersVisible = this.dataGridView.ColumnHeadersVisible = false;
+
+            this.RulesCovered = new Dictionary<RuleInfo, bool>[this.solver.Height, this.solver.Width];
+            for (var i = 0; i < this.solver.Height; i++)
+            {
+                for (var j = 0; j < this.solver.Width; j++)
+                {
+                    if (this.RulesCovered[i, j] == null)
+                    {
+                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, bool>();
+                    }
+                }
+            }
             this.comboBoxRule.Items.Clear();
-            this.comboBoxRule.Items.AddRange(RuleTypeHelper.GetAll());
+            this.comboBoxRule.Items.AddRange(RuleInfoHelper.GetAll());
             this.comboBoxRule.SelectedIndex = 0;
-            this.pictureBox1.LoadCompleted += this.PictureBox1_LoadCompleted;
-            this.pictureBox1.LoadAsync("https://www.sgkoishi.app/img/koishi.png");
+            this.dataGridView.DefaultCellStyle.SelectionForeColor = Color.Black;
+            var rects = new Rectangle[9, 9];
+            for (var i = 0; i < this.solver.Height; i++)
+            {
+                for (var j = 0; j < this.solver.Width; j++)
+                {
+                    rects[j, i] = new Rectangle(i * 45, j * 45, 45, 45);
+                }
+            }
+            this.Background = rects;
+        }
+
+        private void ComboBoxRule_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            e.DrawBackground();
+            var text = ((ComboBox) sender).Items[e.Index].ToString();
+            var item = RuleInfoHelper.Get(text);
+            e.Graphics.DrawString(text, ((Control) sender).Font, new SolidBrush(Color.FromArgb(item.ColorR, item.ColorG, item.ColorB)), e.Bounds.X, e.Bounds.Y);
+        }
+
+        private void DataGridView_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            var selected = this.currentRule.Target.Any(p => p.X == e.RowIndex && p.Y == e.ColumnIndex);
+            if (this.Screenshot != null)
+            {
+                e.Graphics.FillRectangle(new SolidBrush(Color.White), this.Background[e.RowIndex, e.ColumnIndex]);
+                e.Graphics.DrawImage(this.Screenshot, e.CellBounds, this.Background[e.RowIndex, e.ColumnIndex], GraphicsUnit.Pixel);
+            }
+            else
+            {
+                e.PaintBackground(e.CellBounds, selected);
+            }
+            e.PaintContent(e.CellBounds);
+            if (this.Screenshot != null && selected)
+            {
+                e.Graphics.FillEllipse(new SolidBrush(Color.FromArgb(127, 0, 0, 255)), this.Background[e.RowIndex, e.ColumnIndex]);
+            }
+            foreach (var item in this.RulesCovered[e.RowIndex, e.ColumnIndex])
+            {
+                if (item.Value)
+                {
+                    var rule = RuleInfoHelper.Get(item.Key);
+                    e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(rule.ColorA, rule.ColorB, rule.ColorG, rule.ColorB)), this.Background[e.RowIndex, e.ColumnIndex]);
+                }
+            }
+            if (!e.Handled)
+            {
+                e.Handled = true;
+            }
         }
 
         private void PictureBox1_LoadCompleted(object sender, AsyncCompletedEventArgs e)
@@ -129,7 +198,7 @@ namespace Chireiden.SudokuSolver
             {
                 foreach (var item in this.solver.extraRules)
                 {
-                    if (item.Type == this.currentRule.Type && RuleTypeHelper.Table[item.Type.ToString()].Unique)
+                    if (item.Type == this.currentRule.Type && RuleInfoHelper.Get(item.Type).Unique)
                     {
                         this.currentRule = new Rule();
                         this.UpdateListBox();
@@ -198,17 +267,47 @@ namespace Chireiden.SudokuSolver
         private void TextBoxExtra_Validating(object sender, CancelEventArgs e)
         {
             var s = this.textBoxExtra.Text;
-            if (string.IsNullOrWhiteSpace(s))
-            {
-                this.currentRule.Extra = 0;
-            }
-            else if (!int.TryParse(s, out var value))
+            if (!string.IsNullOrWhiteSpace(s) && !int.TryParse(s, out var _))
             {
                 e.Cancel = true;
             }
-            else
+        }
+
+        private void PictureBox1_Click(object sender, EventArgs e)
+        {
+            if (Clipboard.ContainsImage())
             {
-                this.currentRule.Extra = value;
+                this.Screenshot = Clipboard.GetImage();
+            }
+            if (this.Screenshot != null)
+            {
+                var destRect = new Rectangle(0, 0, 405, 405);
+                var destImage = new Bitmap(405, 405);
+
+                destImage.SetResolution(this.Screenshot.HorizontalResolution, this.Screenshot.VerticalResolution);
+
+                using (var graphics = Graphics.FromImage(destImage))
+                {
+                    graphics.CompositingMode = CompositingMode.SourceCopy;
+                    graphics.CompositingQuality = CompositingQuality.HighQuality;
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.SmoothingMode = SmoothingMode.HighQuality;
+                    graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
+                    using (var wrapMode = new ImageAttributes())
+                    {
+                        wrapMode.SetWrapMode(WrapMode.TileFlipXY);
+                        graphics.DrawImage(this.Screenshot, destRect, 0, 0, this.Screenshot.Width, this.Screenshot.Height, GraphicsUnit.Pixel, wrapMode);
+                    }
+                }
+                this.dataGridView.CellBorderStyle = DataGridViewCellBorderStyle.None;
+                for (var i = 0; i < this.solver.Width; i++)
+                {
+                    this.dataGridView.Columns[i].DividerWidth = 0;
+                    this.dataGridView.Rows[i].DividerHeight = 0;
+                }
+                this.Screenshot = destImage;
+                this.Refresh();
             }
         }
 
@@ -220,7 +319,8 @@ namespace Chireiden.SudokuSolver
 
         private void UpdateListBox()
         {
-            this.currentRule.Type = RuleTypeHelper.Get((string) this.comboBoxRule.SelectedItem);
+            this.currentRule.Type = RuleInfoHelper.Get(this.comboBoxRule.SelectedItem.ToString()).Value;
+            this.currentRule.Extra = int.Parse(this.textBoxExtra.Text);
             var ti = this.listBoxRules.TopIndex;
             var selected = this.listBoxRules.SelectedIndex;
             // No idea why databinding not working so manually update listbox
@@ -232,6 +332,25 @@ namespace Chireiden.SudokuSolver
                 this.listBoxRules.SelectedIndex = Math.Min(this.listBoxRules.Items.Count - 1, selected);
             }
             this.textBoxLogs.Text = this.currentRule.ToString();
+            this.RulesCovered = new Dictionary<RuleInfo, bool>[this.solver.Height, this.solver.Width];
+            for (var i = 0; i < this.solver.Height; i++)
+            {
+                for (var j = 0; j < this.solver.Width; j++)
+                {
+                    if (this.RulesCovered[i, j] == null)
+                    {
+                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, bool>();
+                    }
+                }
+            }
+            foreach (var item in this.solver.extraRules)
+            {
+                foreach (var p in item.Target)
+                {
+                    this.RulesCovered[p.X, p.Y][item.Type] = true;
+                }
+            }
+            this.dataGridView.Refresh();
         }
     }
 }

@@ -21,11 +21,15 @@ namespace Chireiden.SudokuSolver
         public bool NotImplemented { get; set; }
         public bool GlobalUnique { get; set; }
         public bool Outside { get; set; }
+        public byte ColorR { get; set; }
+        public byte ColorG { get; set; }
+        public byte ColorB { get; set; }
+        public byte ColorA { get; set; } = 127;
     }
 
-    public static class RuleTypeHelper
+    public static class RuleInfoHelper
     {
-        public class RuleTypeItem
+        public class RuleInfoItem
         {
             public string Name;
             public int MinCount;
@@ -33,54 +37,67 @@ namespace Chireiden.SudokuSolver
             public bool Implemented;
             public bool Unique;
             public bool Outside;
-            public RuleType Value;
+            public RuleInfo Value;
+            public byte ColorR;
+            public byte ColorG;
+            public byte ColorB;
+            public byte ColorA;
         }
 
-        private static readonly FieldInfo[] _ruleTypes;
-        public static readonly Dictionary<string, RuleTypeItem> Table;
+        private static readonly FieldInfo[] _ruleInfos;
+        private static readonly Dictionary<string, RuleInfoItem> lookupTable;
 
-        static RuleTypeHelper()
+        static RuleInfoHelper()
         {
-            _ruleTypes = typeof(RuleType).GetFields(BindingFlags.Static | BindingFlags.Public);
-            Table = new Dictionary<string, RuleTypeItem>();
-            foreach (var i in _ruleTypes)
+            _ruleInfos = typeof(RuleInfo).GetFields(BindingFlags.Static | BindingFlags.Public);
+            lookupTable = new Dictionary<string, RuleInfoItem>();
+            foreach (var i in _ruleInfos)
             {
-                var item = new RuleTypeItem
+                var item = new RuleInfoItem
                 {
                     Name = i.Name,
-                    Value = (RuleType) Enum.Parse(typeof(RuleType), i.Name)
+                    Value = (RuleInfo) Enum.Parse(typeof(RuleInfo), i.Name)
                 };
-                var targetCount = i.GetCustomAttributes<RuleInfoAttribute>().ToList();
-                if (targetCount.Count > 0)
+                var rules = i.GetCustomAttributes<RuleInfoAttribute>().ToList();
+                if (rules.Count > 0)
                 {
-                    var tc = targetCount[0];
-                    item.MinCount = tc.MinCount;
-                    item.MaxCount = tc.MaxCount;
-                    item.Implemented = !tc.NotImplemented;
-                    item.Outside = tc.Outside;
-                    item.Unique = tc.GlobalUnique;
+                    var rule = rules[0];
+                    item.MinCount = rule.MinCount;
+                    item.MaxCount = rule.MaxCount;
+                    item.Implemented = !rule.NotImplemented;
+                    item.Outside = rule.Outside;
+                    item.Unique = rule.GlobalUnique;
+                    item.ColorA = rule.ColorA;
+                    item.ColorR = rule.ColorR;
+                    item.ColorG = rule.ColorG;
+                    item.ColorB = rule.ColorB;
                 }
-                Table[i.Name] = item;
+                lookupTable[i.Name] = item;
             }
         }
 
         public static string[] GetAll()
         {
-            return Table.Where(f => f.Value.Implemented).Select(f => f.Key).ToArray();
+            return lookupTable.Where(f => f.Value.Implemented).Select(f => f.Key).ToArray();
         }
 
-        public static RuleType Get(string name)
+        public static RuleInfoItem Get(RuleInfo type)
         {
-            return Table[name].Value;
+            return Get(type.ToString());
+        }
+
+        public static RuleInfoItem Get(string name)
+        {
+            return lookupTable[name];
         }
 
         public static bool TargetCorrect(Rule rule)
         {
-            if (rule.Type == RuleType.None)
+            if (rule.Type == RuleInfo.None)
             {
                 return false;
             }
-            var item = Table[rule.Type.ToString()];
+            var item = lookupTable[rule.Type.ToString()];
             if (rule.Target.Count >= item.MinCount && rule.Target.Count <= item.MaxCount)
             {
                 return true;
@@ -94,7 +111,7 @@ namespace Chireiden.SudokuSolver
         }
     }
 
-    public enum RuleType
+    public enum RuleInfo
     {
         [RuleInfo(NotImplemented = true)]
         None,
@@ -123,31 +140,31 @@ namespace Chireiden.SudokuSolver
         /// <summary>
         /// One cell is greater than other.
         /// </summary>
-        [RuleInfo(MinCount = 2)]
+        [RuleInfo(MinCount = 2, ColorB = 255)]
         GT,
 
         /// <summary>
         /// Two cells are consecutive.
         /// </summary>
-        [RuleInfo(MinCount = 2)]
+        [RuleInfo(MinCount = 2, ColorB = 255)]
         Consecutive,
 
         /// <summary>
         /// Sum of given region = given number.
         /// </summary>
-        [RuleInfo(MinCount = 1, MaxCount = 9)]
+        [RuleInfo(MinCount = 1, MaxCount = 9, ColorG = 255)]
         Killer,
 
         /// <summary>
         /// Sum of two cells = 5
         /// </summary>
-        [RuleInfo(MinCount = 2)]
+        [RuleInfo(MinCount = 2, ColorB = 255)]
         V,
 
         /// <summary>
         /// Sum of two cells = 10
         /// </summary>
-        [RuleInfo(MinCount = 2)]
+        [RuleInfo(MinCount = 2, ColorB = 255)]
         X,
 
         /// <summary>
