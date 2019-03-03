@@ -18,7 +18,7 @@ namespace Chireiden.SudokuSolver
         public Rule currentRule = new Rule();
         public Image Screenshot;
         public Rectangle[,] Background;
-        public Dictionary<RuleInfo, bool>[,] RulesCovered = new Dictionary<RuleInfo, bool>[9, 9];
+        public Dictionary<RuleInfo, int>[,] RulesCovered = new Dictionary<RuleInfo, int>[9, 9];
 
         public Form1()
         {
@@ -51,14 +51,14 @@ namespace Chireiden.SudokuSolver
             this.dataGridView.Rows[5].DividerHeight = 2;
             this.dataGridView.RowHeadersVisible = this.dataGridView.ColumnHeadersVisible = false;
 
-            this.RulesCovered = new Dictionary<RuleInfo, bool>[this.solver.Height, this.solver.Width];
+            this.RulesCovered = new Dictionary<RuleInfo, int>[this.solver.Height, this.solver.Width];
             for (var i = 0; i < this.solver.Height; i++)
             {
                 for (var j = 0; j < this.solver.Width; j++)
                 {
                     if (this.RulesCovered[i, j] == null)
                     {
-                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, bool>();
+                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, int>();
                     }
                 }
             }
@@ -104,10 +104,11 @@ namespace Chireiden.SudokuSolver
             }
             foreach (var item in this.RulesCovered[e.RowIndex, e.ColumnIndex])
             {
-                if (item.Value)
+                var rule = RuleInfoHelper.Get(item.Key);
+                var brush = new SolidBrush(Color.FromArgb(rule.ColorA, rule.ColorB, rule.ColorG, rule.ColorB));
+                for (var i = 0; i < item.Value; i++)
                 {
-                    var rule = RuleInfoHelper.Get(item.Key);
-                    e.Graphics.FillRectangle(new SolidBrush(Color.FromArgb(rule.ColorA, rule.ColorB, rule.ColorG, rule.ColorB)), this.Background[e.RowIndex, e.ColumnIndex]);
+                    e.Graphics.FillRectangle(brush, this.Background[e.RowIndex, e.ColumnIndex]);
                 }
             }
             if (!e.Handled)
@@ -334,14 +335,14 @@ namespace Chireiden.SudokuSolver
                 this.listBoxRules.SelectedIndex = Math.Min(this.listBoxRules.Items.Count - 1, selected);
             }
             this.textBoxLogs.Text = this.currentRule.ToString();
-            this.RulesCovered = new Dictionary<RuleInfo, bool>[this.solver.Height, this.solver.Width];
+            this.RulesCovered = new Dictionary<RuleInfo, int>[this.solver.Height, this.solver.Width];
             for (var i = 0; i < this.solver.Height; i++)
             {
                 for (var j = 0; j < this.solver.Width; j++)
                 {
                     if (this.RulesCovered[i, j] == null)
                     {
-                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, bool>();
+                        this.RulesCovered[i, j] = new Dictionary<RuleInfo, int>();
                     }
                 }
             }
@@ -349,7 +350,14 @@ namespace Chireiden.SudokuSolver
             {
                 foreach (var p in item.Target)
                 {
-                    this.RulesCovered[p.X, p.Y][item.Type] = true;
+                    if (this.RulesCovered[p.X, p.Y].ContainsKey(item.Type))
+                    {
+                        this.RulesCovered[p.X, p.Y][item.Type]++;
+                    }
+                    else
+                    {
+                        this.RulesCovered[p.X, p.Y][item.Type] = 1;
+                    }
                 }
             }
             this.dataGridView.Refresh();
