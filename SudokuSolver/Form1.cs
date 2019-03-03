@@ -267,10 +267,12 @@ namespace Chireiden.SudokuSolver
         private void TextBoxExtra_Validating(object sender, CancelEventArgs e)
         {
             var s = this.textBoxExtra.Text;
-            if (!string.IsNullOrWhiteSpace(s) && !int.TryParse(s, out var _))
+            if (!int.TryParse(s, out var value) && !string.IsNullOrWhiteSpace(s))
             {
                 e.Cancel = true;
+                return;
             }
+            this.currentRule.Extra = value;
         }
 
         private void PictureBox1_Click(object sender, EventArgs e)
